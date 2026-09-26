@@ -47,6 +47,12 @@ public class PlayerAnimation : MonoBehaviour
     public float minAirTime = 0.1f;
     [Tooltip("Максимальное время падения для срабатывания анимации приземления")]
     public float maxFallTimeForLand = 2f;
+    [Tooltip("Время приоритета Jump после отрыва от земли (защита от перехвата Fall)")]
+    public float jumpPriorityTime = 0.2f;
+
+    [Header("─── Отладка ───")]
+    [Tooltip("Показывать отладку в консоли и на экране")]
+    public bool showDebug = false;
 
     // =========================================================
     //  ССЫЛКИ НА КОМПОНЕНТЫ
@@ -63,6 +69,7 @@ public class PlayerAnimation : MonoBehaviour
     private bool wasGroundedLastFrame = true;
     private float airTime = 0f;
     private float lastLandTime = -10f;
+    private bool lastGroundedState = false;
 
     // Хэши параметров — кэшируем для производительности
     private int speedHash;
@@ -88,14 +95,10 @@ public class PlayerAnimation : MonoBehaviour
         landHash   = Animator.StringToHash(landTriggerParameter);
         runHash    = Animator.StringToHash(runParameter);
 
-        // Проверяем, что параметры реально существуют в контроллере — иначе предупреждение
+        // Проверяем, что параметры реально существуют в контроллере
         ValidateParameters();
     }
 
-    /// <summary>
-    /// Проверка, что все нужные параметры есть в Animator Controller.
-    /// Помогает избежать загадочных "анимация не работает".
-    /// </summary>
     private void ValidateParameters()
     {
         if (animator.runtimeAnimatorController == null)
@@ -181,36 +184,34 @@ public class PlayerAnimation : MonoBehaviour
     // =========================================================
     private void HandleAirState(bool isGrounded)
     {
-        // Только что оторвались от земли — считаем время полёта
-        if (!isGrounded)
+        if (isGrounded)
         {
-            airTime += Time.deltaTime;
-        }
-
-        // Только что приземлились
-        if (isGrounded && !wasGroundedLastFrame)
-        {
-            if (airTime >= minAirTime && airTime <= maxFallTimeForLand)
+            // Только что приземлились — триггер Land
+            if (!wasGroundedLastFrame && airTime >= minAirTime && airTime <= maxFallTimeForLand)
             {
-                // Срабатывает триггер приземления
                 animator.SetTrigger(landHash);
                 lastLandTime = Time.time;
             }
-            airTime = 0f;
-        }
 
-        // Управляем параметрами Jump/Fall
-        if (isGrounded)
-        {
+            airTime = 0f;
             animator.SetBool(jumpHash, false);
             animator.SetBool(fallHash, false);
+
+            lastGroundedState = true;
         }
         else
         {
-            // Если движемся вверх — это прыжок, если вниз — падение
-            // (проверяем по вертикальной составляющей через controller.velocity)
+            airTime += Time.deltaTime;
+
             float vertical = controller.velocity.y;
-            if (vertical > 0.1f)
+
+            // 🔥 ПРИОРИТЕТ ПРЫЖКУ:
+            // В первые jumpPriorityTime секунд после отрыва — ВСЕГДА играем Jump,
+            // даже если velocity ещё не стало положительным.
+            // Это защита от перехвата Fall в первом кадре.
+            bool shouldPlayJump = vertical > 0f || airTime < jumpPriorityTime;
+
+            if (shouldPlayJump)
             {
                 animator.SetBool(jumpHash, true);
                 animator.SetBool(fallHash, false);
@@ -220,6 +221,14 @@ public class PlayerAnimation : MonoBehaviour
                 animator.SetBool(jumpHash, false);
                 animator.SetBool(fallHash, true);
             }
+
+            // 🔍 Отладка
+            if (showDebug && lastGroundedState)
+            {
+                Debug.Log($"[PlayerAnimation] Прыжок! airTime={airTime:F2}, vertical={vertical:F2}, Jump={shouldPlayJump}");
+            }
+
+            lastGroundedState = false;
         }
 
         wasGroundedLastFrame = isGrounded;
@@ -230,7 +239,6 @@ public class PlayerAnimation : MonoBehaviour
     // =========================================================
     private void UpdateSpeedParameter(bool isMoving, bool isRunning, bool isCrouchingNow)
     {
-        // Целевая скорость анимации
         float targetSpeed = 0f;
 
         if (isMoving && !isCrouchingNow)
@@ -247,7 +255,7 @@ public class PlayerAnimation : MonoBehaviour
         float lerpSpeed = targetSpeed > currentAnimSpeed ? acceleration : deceleration;
         currentAnimSpeed = Mathf.Lerp(currentAnimSpeed, targetSpeed, lerpSpeed * Time.deltaTime);
 
-        // Если почти остановились — обнуляем, чтобы не было "дрожания" на минимуме
+        // Если почти остановились — обнуляем
         if (Mathf.Abs(currentAnimSpeed) < moveThreshold)
             currentAnimSpeed = 0f;
 
@@ -279,43 +287,35 @@ public class PlayerAnimation : MonoBehaviour
     }
 
     // =========================================================
-    //  ПУБЛИЧНЫЕ МЕТОДЫ — можно вызывать из других скриптов
+    //  ПУБЛИЧНЫЕ МЕТОДЫ
     // =========================================================
-
-    /// <summary>Вернуть текущую скорость анимации (0..1).</summary>
     public float GetCurrentAnimSpeed() => currentAnimSpeed;
-
-    /// <summary>Игрок сейчас в приседе?</summary>
     public bool IsCrouching() => isCrouching;
-
-    /// <summary>Игрок сейчас бежит?</summary>
     public bool IsRunning() => isRunning;
-
-    /// <summary>Игрок сейчас в воздухе?</summary>
     public bool IsInAir() => airTime > minAirTime;
-
-    /// <summary>Сколько времени прошло с последнего приземления.</summary>
     public float TimeSinceLastLand() => Time.time - lastLandTime;
 
     // =========================================================
-    //  ОТЛАДКА
+    //  ОТЛАДКА НА ЭКРАНЕ (только в редакторе)
     // =========================================================
 #if UNITY_EDITOR
     private void OnGUI()
     {
-        // Простой дебаг-оверлей в левом верхнем углу (только в редакторе)
+        if (!showDebug) return;
         if (!Application.isPlaying) return;
 
         GUIStyle style = new GUIStyle(GUI.skin.label);
         style.fontSize = 14;
         style.normal.textColor = Color.green;
 
-        GUI.Label(new Rect(10, 10, 300, 20),
+        GUI.Label(new Rect(10, 10, 400, 20),
             $"Anim Speed: {currentAnimSpeed:F2}", style);
-        GUI.Label(new Rect(10, 30, 300, 20),
+        GUI.Label(new Rect(10, 30, 400, 20),
             $"Crouch: {isCrouching} | Run: {isRunning}", style);
-        GUI.Label(new Rect(10, 50, 300, 20),
+        GUI.Label(new Rect(10, 50, 400, 20),
             $"Air Time: {airTime:F2}s", style);
+        GUI.Label(new Rect(10, 70, 400, 20),
+            $"Grounded: {lastGroundedState}", style);
     }
 #endif
 }

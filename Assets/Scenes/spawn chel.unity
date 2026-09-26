@@ -968,7 +968,7 @@ MonoBehaviour:
   walkSpeed: 5
   crouchSpeed: 5
   runSpeed: 10
-  jumpHeight: 30
+  jumpHeight: 10
   gravity: -9.81
   crouchHeight: 1
   standHeight: 2
@@ -1039,6 +1039,8 @@ MonoBehaviour:
   moveThreshold: 0.01
   minAirTime: 0.1
   maxFallTimeForLand: 2
+  jumpPriorityTime: 0.2
+  showDebug: 0
 --- !u!1 &981132402836208372
 GameObject:
   m_ObjectHideFlags: 0
