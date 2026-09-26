@@ -7,6 +7,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Скорости")]
     public float walkSpeed = 5f;
     public float crouchSpeed = 2.5f;
+    public float runSpeed = 10f;        // НОВОЕ: скорость бега
     public float jumpHeight = 1.5f;
     public float gravity = -9.81f;
 
@@ -52,7 +53,20 @@ public class PlayerMovement : MonoBehaviour
         if (Keyboard.current.wKey.isPressed) z += 1f;
 
         Vector3 move = transform.right * x + transform.forward * z;
-        float currentSpeed = isCrouching ? crouchSpeed : walkSpeed;
+
+        // ОБНОВЛЁННЫЙ БЛОК: выбор скорости (присед / бег / ходьба)
+        bool isRunning = Keyboard.current != null &&
+            (Keyboard.current.leftShiftKey.isPressed ||
+             Keyboard.current.rightShiftKey.isPressed);
+
+        float currentSpeed;
+        if (isCrouching)
+            currentSpeed = crouchSpeed;
+        else if (isRunning)
+            currentSpeed = runSpeed;
+        else
+            currentSpeed = walkSpeed;
+
         controller.Move(move * currentSpeed * Time.deltaTime);
 
         if (Keyboard.current.spaceKey.wasPressedThisFrame && isGrounded && !isCrouching)

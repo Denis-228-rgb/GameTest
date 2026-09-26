@@ -930,6 +930,7 @@ GameObject:
   - component: {fileID: 919132148819303301}
   - component: {fileID: 919132148819303300}
   - component: {fileID: 919132148819303302}
+  - component: {fileID: 919132148819303303}
   m_Layer: 0
   m_Name: volodia
   m_TagString: Untagged
@@ -965,8 +966,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   walkSpeed: 5
-  crouchSpeed: 2.5
-  jumpHeight: 1.5
+  crouchSpeed: 5
+  runSpeed: 10
+  jumpHeight: 30
   gravity: -9.81
   crouchHeight: 1
   standHeight: 2
@@ -1012,6 +1014,31 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThirdPersonMovement
   cameraTransform: {fileID: 1422226492}
   rotationSpeed: 10
+--- !u!114 &919132148819303303
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919132148819303298}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd2137071e5999e4cabd30e26f08debf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
+  speedParameter: Speed
+  crouchParameter: IsCrouching
+  jumpParameter: IsJumping
+  fallParameter: IsFalling
+  landTriggerParameter: Land
+  runParameter: IsRunning
+  walkAnimValue: 0.5
+  runAnimValue: 1
+  acceleration: 8
+  deceleration: 12
+  moveThreshold: 0.01
+  minAirTime: 0.1
+  maxFallTimeForLand: 2
 --- !u!1 &981132402836208372
 GameObject:
   m_ObjectHideFlags: 0
