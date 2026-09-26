@@ -3,15 +3,15 @@ using UnityEngine.InputSystem;
 
 public class ThirdPersonMovement : MonoBehaviour
 {
-    public Transform cameraTransform;   // Ссылка на Cam3P (или его корень)
+    public Transform cameraTransform;
     public float rotationSpeed = 10f;
 
     void Update()
     {
-        if (!gameObject.activeInHierarchy) return;
+        // Проверяем: есть ли камера, и включена ли она (активна в Hierarchy)
         if (cameraTransform == null) return;
+        if (!cameraTransform.gameObject.activeInHierarchy) return;
 
-        // Если игрок стоит на месте — не крутим
         bool isMoving = Keyboard.current != null &&
             (Keyboard.current.wKey.isPressed ||
              Keyboard.current.aKey.isPressed ||
@@ -20,14 +20,12 @@ public class ThirdPersonMovement : MonoBehaviour
 
         if (!isMoving) return;
 
-        // Получаем направление, куда смотрит камера (только по горизонтали)
         Vector3 cameraForward = cameraTransform.forward;
         cameraForward.y = 0f;
         cameraForward.Normalize();
 
         if (cameraForward.sqrMagnitude < 0.01f) return;
 
-        // Плавно поворачиваем игрока в эту сторону
         Quaternion targetRotation = Quaternion.LookRotation(cameraForward);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
     }
